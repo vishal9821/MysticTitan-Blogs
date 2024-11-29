@@ -10,15 +10,16 @@ from sqlalchemy import Integer, String, Text
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
+import os
 # Import your forms from the forms.py
 from forms import CreatePostForm, CreateRegisterForm, CreateLoginForm, CreateCommentForm
 
-EMAIL = "theUnconquerablesoul007@gmail.com"
-PASSWORD = "pnbqinpoakhtvpho"
-RECEIVER = "vishalaagwani05@gmail.com"
+EMAIL = os.getenv('email')
+PASSWORD = os.getenv('password')
+RECEIVER = os.getenv('rec')
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '8BYkEfBA6O6aagwaniWlSihBXvishalox7C0sKR6b'
+app.config['SECRET_KEY'] = os.getenv('key')
 ckeditor = CKEditor(app)
 Bootstrap5(app)
 
@@ -59,7 +60,7 @@ def only_commenter(function):
 # CREATE DATABASE
 class Base(DeclarativeBase):
     pass
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///posts.db")
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
@@ -240,18 +241,21 @@ def about():
 @app.route("/contact",methods=['GET','POST'])
 def contact():
     if request.method == 'POST':
-        name = request.form.get('name')
-        mail = request.form.get('email')
-        phone = request.form.get('phone')
-        message = request.form.get('message')
-        text = f"subject:From blog site user {name}\n\nName:{name}\nEmail:{mail}\nPhone:{phone}\nMessage:{message}"
-        with smtplib.SMTP("smtp.gmail.com") as connection:
-            connection.starttls()
-            connection.login(user=EMAIL, password=PASSWORD)
-            connection.sendmail(from_addr=EMAIL, to_addrs=RECEIVER, msg=text)
-        return render_template("contact.html",msg_sent=True)
+        if current_user.is_authenticated:
+            name = request.form.get('name')
+            mail = request.form.get('email')
+            phone = request.form.get('phone')
+            message = request.form.get('message')
+            text = f"subject:From blog site user {name}\n\nName: {name}\nEmail: {mail}\nPhone: {phone}\nMessage: {message}"
+            with smtplib.SMTP("smtp.gmail.com") as connection:
+                connection.starttls()
+                connection.login(user=EMAIL, password=PASSWORD)
+                connection.sendmail(from_addr=EMAIL, to_addrs=RECEIVER, msg=text)
+            return render_template("contact.html",msg_sent=True)
+        else:
+            flash("Please login or register first !!")
     return render_template("contact.html")
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5002)
+    app.run(debug=False)
