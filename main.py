@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from flask import Flask, abort, render_template, redirect, url_for, flash, request
+from flask import Flask, abort, render_template, redirect, url_for, flash, request, session
 from flask_bootstrap import Bootstrap5
 from flask_ckeditor import CKEditor
 from flask_gravatar import Gravatar
@@ -11,15 +11,18 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
 import os
+from random import randint
 # Import your forms from the forms.py
-from forms import CreatePostForm, CreateRegisterForm, CreateLoginForm, CreateCommentForm
 
-EMAIL = os.getenv('email')
-PASSWORD = os.getenv('password')
-RECEIVER = os.getenv('rec')
+from forms import CreatePostForm, CreateRegisterForm, CreateLoginForm, CreateCommentForm, CreateOptCheckForm
+
+EMAIL = 'TheUnconquerableSoul007@gmail.com'
+PASSWORD2 = "nycqfmiqdsrtmcfw"
+PASSWORD = os.getenv('password','pnbqinpoakhtvpho')
+RECEIVER = os.getenv('rec','vishalaagwani05@gmail.com')
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('key')
+app.config['SECRET_KEY'] = os.getenv('key','8BYkEfBA606aagwaniWlSihBXvishalox7C0sKR6b')
 ckeditor = CKEditor(app)
 Bootstrap5(app)
 
@@ -107,24 +110,56 @@ with app.app_context():
 def register():
     form = CreateRegisterForm()
     if form.validate_on_submit():
-        salted_password = generate_password_hash(form.password.data,'scrypt',salt_length=8)
+        if form.password.data != form.c_password.data:
+            flash("Password mismatch please try again !")
+            return redirect(url_for('register'))
+        else:
+            salted_password = generate_password_hash(form.password.data,'scrypt',salt_length=8)
+            otp = randint(100000,999999)
+            new_user = {
+                'name':form.name.data,
+                'email':form.email.data,
+                'password':salted_password
+            }
+            with app.app_context():
+                existing_user = db.session.execute(db.select(User).where(User.email == form.email.data)).scalar()
+                if existing_user:
+                    flash('You already sign up with this email please login instead')
+                    return redirect(url_for('login'))
+                else:
+                    print(otp)
+                    text = f"subject: From MysticTitan Blogs\n\nHere is Your OTP: {otp}\nValid for 5 minutes."
+                    with smtplib.SMTP("smtp.gmail.com",587) as connection:
+                        connection.starttls()
+                        connection.login(user='TheUnconquerableSoul007@gmail.com', password=PASSWORD2)
+                        connection.sendmail(from_addr='TheUnconquerableSoul007@gmail.com', to_addrs=form.email.data, msg=text)
+                    session['otp'] = otp
+                    session['user'] = new_user
+                    return redirect(url_for('otpverification'))
+    return render_template("register.html",form=form)
+# otp varifiaction
+@app.route('/OTP',methods=['GET','POST'])
+def otpverification():
+    form = CreateOptCheckForm()
+    if form.validate_on_submit():
+        enter_otp = int(form.otp.data)
+        stored_otp = int(session.get('otp'))
+        user_details = session.get('user')
         new_user = User(
-            name=form.name.data,
-            email = form.email.data,
-            password = salted_password
+            email = user_details['email'],
+            password = user_details['password'],
+            name = user_details['name']
         )
-        with app.app_context():
-            existing_user = db.session.execute(db.select(User).where(User.email == new_user.email)).scalar()
-            if existing_user:
-                flash('You already sign up with this email please login instead')
-                return redirect(url_for('login'))
-            else:
+        if enter_otp == stored_otp:
+            with app.app_context():
                 db.session.add(new_user)
                 db.session.commit()
                 login_user(new_user)
                 return redirect(url_for('get_all_posts'))
-    return render_template("register.html",form=form)
-
+        else:
+            flash('Invalid OTP please try again !')
+            return render_template('otpcheck.html',form=form)
+    return render_template('otpcheck.html',form=form)
 
 #Retrieve a user from the database based on their email.
 @app.route('/login',methods=['GET','POST'])
@@ -152,7 +187,7 @@ def logout():
 
 @app.route('/')
 def get_all_posts():
-    result = db.session.execute(db.select(BlogPost))
+    result = db.session.execute(db.select(BlogPost).order_by(BlogPost.id.desc()))
     posts = result.scalars().all()
     return render_template("index.html", all_posts=posts)
 
@@ -247,7 +282,7 @@ def contact():
             phone = request.form.get('phone')
             message = request.form.get('message')
             text = f"subject:From blog site user {name}\n\nName: {name}\nEmail: {mail}\nPhone: {phone}\nMessage: {message}"
-            with smtplib.SMTP("smtp.gmail.com") as connection:
+            with smtplib.SMTP("smtp.gmail.com",587) as connection:
                 connection.starttls()
                 connection.login(user=EMAIL, password=PASSWORD)
                 connection.sendmail(from_addr=EMAIL, to_addrs=RECEIVER, msg=text)
@@ -258,4 +293,4 @@ def contact():
 
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
