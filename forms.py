@@ -38,3 +38,12 @@ class CreateCommentForm(FlaskForm):
 class CreateOptCheckForm(FlaskForm):
     otp = StringField("OTP",validators=[DataRequired()])
     submit = SubmitField('Submit')
+
+class CreateResetPasswordForm(FlaskForm):
+    password = PasswordField('password',validators=[DataRequired()])
+    confirm = PasswordField('confirm password',validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
+class CreateFinduserForm(FlaskForm):
+    email = StringField("Email",validators=[DataRequired()])
+    submit = SubmitField('Find Me!')

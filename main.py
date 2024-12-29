@@ -14,10 +14,9 @@ import os
 from random import randint
 # Import your forms from the forms.py
 
-from forms import CreatePostForm, CreateRegisterForm, CreateLoginForm, CreateCommentForm, CreateOptCheckForm
+from forms import CreatePostForm, CreateRegisterForm, CreateLoginForm, CreateCommentForm, CreateOptCheckForm,CreateFinduserForm, CreateResetPasswordForm
 
-EMAIL = 'TheUnconquerableSoul007@gmail.com'
-PASSWORD2 = "nycqfmiqdsrtmcfw"
+EMAIL = os.getenv('email','TheUnconquerableSoul007@gmail.com''')
 PASSWORD = os.getenv('password','pnbqinpoakhtvpho')
 RECEIVER = os.getenv('rec','vishalaagwani05@gmail.com')
 
@@ -131,12 +130,58 @@ def register():
                     text = f"subject: From MysticTitan Blogs\n\nHere is Your OTP: {otp}\nValid for 5 minutes."
                     with smtplib.SMTP("smtp.gmail.com",587) as connection:
                         connection.starttls()
-                        connection.login(user='TheUnconquerableSoul007@gmail.com', password=PASSWORD2)
-                        connection.sendmail(from_addr='TheUnconquerableSoul007@gmail.com', to_addrs=form.email.data, msg=text)
+                        connection.login(user=EMAIL, password=PASSWORD)
+                        connection.sendmail(from_addr=new_user['email'], to_addrs=form.email.data, msg=text)
                     session['otp'] = otp
                     session['user'] = new_user
+                    session['finduser'] = None
                     return redirect(url_for('otpverification'))
     return render_template("register.html",form=form)
+
+#reset password
+@app.route('/reset',methods=['GET','POST'])
+def resetpassword():
+    form = CreateResetPasswordForm()
+    user = session.get('finduser')
+    if form.validate_on_submit():
+        if form.password.data != form.confirm.data:
+            flash('Password mismatch please try again !')
+            return redirect(url_for('resetpassword'))
+        else:
+            salted_password = generate_password_hash(form.password.data, 'scrypt', salt_length=8)
+            with app.app_context():
+                existed_user = db.session.execute(db.select(User).where(User.email == user)).scalar()
+                if existed_user:
+                    existed_user.password = salted_password
+                    db.session.commit()
+                    login_user(existed_user)
+                    flash("Password Updated Successfully")
+                    return redirect(url_for('get_all_posts'))
+                else:
+                    flash("Something went wrong please try again later!!")
+                    return redirect(url_for('resetpassword'))
+    return render_template('reset.html',form=form)
+
+@app.route("/finduser",methods=['GET','POST'])
+def finduser():
+    form = CreateFinduserForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        user = db.session.execute(db.select(User).where(User.email == form.email.data)).scalar()
+        if not user:
+            flash("Email Not Found. Try Again!")
+        else:
+            otp = randint(100000,999999)
+            text = f"subject: From MysticTitan Blogs\n\nHere is Your OTP to reset your password: {otp}\nValid for 5 minutes."
+            with smtplib.SMTP("smtp.gmail.com", 587) as connection:
+                connection.starttls()
+                connection.login(user=EMAIL, password=PASSWORD)
+                connection.sendmail(from_addr=email, to_addrs=form.email.data, msg=text)
+            session['otp'] = otp
+            session['user'] = None
+            session['finduser'] = user.email
+            return redirect(url_for('otpverification'))
+    return render_template('finduser.html',form=form)
 # otp varifiaction
 @app.route('/OTP',methods=['GET','POST'])
 def otpverification():
@@ -145,17 +190,23 @@ def otpverification():
         enter_otp = int(form.otp.data)
         stored_otp = int(session.get('otp'))
         user_details = session.get('user')
-        new_user = User(
-            email = user_details['email'],
-            password = user_details['password'],
-            name = user_details['name']
-        )
+        already_user = session.get('finduser')
+        print(user_details)
+        print(already_user)
         if enter_otp == stored_otp:
-            with app.app_context():
-                db.session.add(new_user)
-                db.session.commit()
-                login_user(new_user)
-                return redirect(url_for('get_all_posts'))
+            if not already_user:
+                new_user = User(
+                    email=user_details['email'],
+                    password=user_details['password'],
+                    name=user_details['name']
+                )
+                with app.app_context():
+                    db.session.add(new_user)
+                    db.session.commit()
+                    login_user(new_user)
+                    return redirect(url_for('get_all_posts'))
+            else:
+                return redirect(url_for('resetpassword'))
         else:
             flash('Invalid OTP please try again !')
             return render_template('otpcheck.html',form=form)
@@ -178,6 +229,11 @@ def login():
                 flash('User not exist check your email !')
     return render_template("login.html",form=form)
 
+#userprofile
+@app.route("/userprofile",methods=['GET'])
+@login_required
+def profile():
+    return render_template('profile.html')
 
 @app.route('/logout')
 def logout():

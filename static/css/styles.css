@@ -10853,3 +10853,23 @@ header.masthead .post-heading .meta a {
   color: #ee6f57;
   text-align: center;
 }
+
+/*reset password style*/
+.loginlink:link,:visited{
+transition:all 0.4s ease;
+}
+.loginlink:hover{
+text-shadow: 0 1px 40px black;
+}
+
+@keyframes fadeout{
+  0%{
+  opacity:1;}
+  50%{
+  opacity:0.5;}
+  100%{
+  opacity:0;}
+}
+.fade-out{
+animation: fadeout 4s;
+}
