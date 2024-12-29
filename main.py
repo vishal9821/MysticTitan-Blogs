@@ -126,7 +126,6 @@ def register():
                     flash('You already sign up with this email please login instead')
                     return redirect(url_for('login'))
                 else:
-                    print(otp)
                     text = f"subject: From MysticTitan Blogs\n\nHere is Your OTP: {otp}\nValid for 5 minutes."
                     with smtplib.SMTP("smtp.gmail.com",587) as connection:
                         connection.starttls()
@@ -191,8 +190,6 @@ def otpverification():
         stored_otp = int(session.get('otp'))
         user_details = session.get('user')
         already_user = session.get('finduser')
-        print(user_details)
-        print(already_user)
         if enter_otp == stored_otp:
             if not already_user:
                 new_user = User(
