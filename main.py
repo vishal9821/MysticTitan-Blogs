@@ -16,12 +16,12 @@ from random import randint
 
 from forms import CreatePostForm, CreateRegisterForm, CreateLoginForm, CreateCommentForm, CreateOptCheckForm,CreateFinduserForm, CreateResetPasswordForm
 
-EMAIL = os.getenv('email','TheUnconquerableSoul007@gmail.com''')
-PASSWORD = os.getenv('password','pnbqinpoakhtvpho')
-RECEIVER = os.getenv('rec','vishalaagwani05@gmail.com')
+EMAIL = os.getenv('email')
+PASSWORD = os.getenv('password')
+RECEIVER = os.getenv('rec')
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('key','8BYkEfBA606aagwaniWlSihBXvishalox7C0sKR6b')
+app.config['SECRET_KEY'] = os.getenv('key')
 ckeditor = CKEditor(app)
 Bootstrap5(app)
 
@@ -349,4 +349,4 @@ def contact():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
